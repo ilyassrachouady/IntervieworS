@@ -33,7 +33,17 @@ Make questions challenging but realistic for the role.`;
 
   const result = await model.generateContent(prompt);
   const response = await result.response;
-  return JSON.parse(response.text());
+  console.log('Raw response:', response.text());
+  const rawResponse = response.text().trim();
+  // Remove the backticks if they are present
+  const cleanedResponse = rawResponse.replace(/^```json\n|\n```$/g, '');
+  console.log('Cleaned response:', cleanedResponse);
+  try {
+    return JSON.parse(cleanedResponse);
+  } catch (error) {
+    console.error('Error parsing JSON:', error);
+    throw new Error('Failed to parse the response from the API.');
+  }
 }
 
 export async function analyzeResponse(

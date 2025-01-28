@@ -4,7 +4,9 @@ import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognitio
 import { generateQuestions, analyzeResponse, type InterviewQuestion, type FeedbackResponse } from '../lib/gemini';
 import { speechService } from '../lib/speech';
 
-const jobRoles = [
+type JobRole = 'Frontend Developer' | 'Backend Developer' | 'Full Stack Developer' | 'DevOps Engineer' | 'Data Scientist';
+
+const jobRoles: JobRole[] = [
   'Frontend Developer',
   'Backend Developer',
   'Full Stack Developer',
@@ -12,7 +14,7 @@ const jobRoles = [
   'Data Scientist',
 ];
 
-const topics = {
+const topics: { [key in JobRole]: string[] } = {
   'Frontend Developer': ['React', 'JavaScript', 'CSS', 'Web Performance', 'Accessibility'],
   'Backend Developer': ['Node.js', 'Databases', 'API Design', 'Security', 'Scalability'],
   'Full Stack Developer': ['Frontend', 'Backend', 'Databases', 'API Design', 'System Design'],
@@ -21,7 +23,7 @@ const topics = {
 };
 
 export function InterviewSimulator() {
-  const [selectedRole, setSelectedRole] = useState('');
+  const [selectedRole, setSelectedRole] = useState<JobRole | ''>('');
   const [questions, setQuestions] = useState<InterviewQuestion[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answer, setAnswer] = useState('');
@@ -46,7 +48,7 @@ export function InterviewSimulator() {
   }, [transcript]);
 
   useEffect(() => {
-    let interval: number;
+    let interval: ReturnType<typeof setInterval>;
     if (isTimerRunning) {
       interval = setInterval(() => {
         setTimer(prev => prev + 1);
@@ -55,6 +57,28 @@ export function InterviewSimulator() {
     return () => clearInterval(interval);
   }, [isTimerRunning]);
 
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const generatedQuestions = await generateQuestions(
+          selectedRole,
+          selectedRole ? topics[selectedRole] : []
+        );
+        setQuestions(generatedQuestions);
+      } catch (err) {
+        setError('Failed to fetch questions.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (selectedRole) {
+      fetchQuestions();
+    }
+  }, [selectedRole]);
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -62,14 +86,18 @@ export function InterviewSimulator() {
   };
 
   const startInterview = async () => {
+    console.log('Starting interview...');
+    console.log('Selected Role:', selectedRole);
+    console.log('Topics:', selectedRole ? topics[selectedRole] : []);
     try {
       setIsLoading(true);
       setError(null);
       const generatedQuestions = await generateQuestions(
         selectedRole,
-        topics[selectedRole as keyof typeof topics]
+        selectedRole ? topics[selectedRole] : []
       );
       setQuestions(generatedQuestions);
+      console.log('Generated Questions:', generatedQuestions);
       setCurrentQuestionIndex(0);
       setAnswer('');
       setFeedback(null);
@@ -153,7 +181,7 @@ export function InterviewSimulator() {
               </label>
               <select
                 value={selectedRole}
-                onChange={(e) => setSelectedRole(e.target.value)}
+                onChange={(e) => setSelectedRole(e.target.value as JobRole)}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
               >
                 <option value="">Choose a role...</option>
@@ -167,7 +195,7 @@ export function InterviewSimulator() {
               <div>
                 <h3 className="text-sm font-medium text-gray-700 mb-2">Topics Covered:</h3>
                 <div className="flex flex-wrap gap-2">
-                  {topics[selectedRole as keyof typeof topics].map(topic => (
+                  {topics[selectedRole].map(topic => (
                     <span
                       key={topic}
                       className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm"
